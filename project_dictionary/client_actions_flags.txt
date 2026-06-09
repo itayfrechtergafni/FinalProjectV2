@@ -1,0 +1,5 @@
+01 = kill
+02 = stop
+03 = mute
+04 = unmute
+05 = join
