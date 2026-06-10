@@ -5,6 +5,7 @@ from database_classes.group_database_class import GroupDatabase
 import queue
 import threading
 from Project_Classes.protocol_translator import SEP, COLSEP, ROWSEP, sql_query_flags, client_actions
+from Encryption.encrypt_class import secure_sendto, secure_recvfrom
 
 
 class SockFunctions:
@@ -26,13 +27,13 @@ class SockFunctions:
             self.chatters_dict[self.user_id] = self.name
 
 
-        self.sock.sendto(self.user_id.encode(), self.server_addr)
+        secure_sendto(self.sock, self.user_id.encode(), self.server_addr)
         print(f"handshake with server")
 
     def find_username_by_id(self, user_id):
-        self.query_sock.sendto(
+        secure_sendto(self.query_sock,
             sql_query_flags['username_by_user_ID'] + SEP + user_id.encode(), self.query_addr)
-        query_answer, _ = self.query_sock.recvfrom(1024)
+        query_answer, _ = secure_recvfrom(self.query_sock, 1024)
         query_answer = query_answer.split(SEP)
 
         return query_answer[1].decode()
@@ -40,7 +41,7 @@ class SockFunctions:
     def send_join(self):
         # Tell the chat server which group this socket belongs to:
         #   join + SEP + user_id + SEP + group_id
-        self.sock.sendto(
+        secure_sendto(self.sock,
             client_actions['join'] + SEP + self.user_id.encode() + SEP + self.group_id.encode(),
             self.server_addr)
 
@@ -88,7 +89,7 @@ class ServerFunctions(UserDatabase, GroupDatabase):
 
         while self.is_streaming:
             try:
-                out_data, addr = self.sock.recvfrom(self.CHUNK_SIZE * 2)
+                out_data, addr = secure_recvfrom(self.sock, self.CHUNK_SIZE * 2)
                 parts = out_data.split(SEP)
                 flag = parts[0]
 
@@ -106,7 +107,7 @@ class ServerFunctions(UserDatabase, GroupDatabase):
                     continue
 
                 # Announcements channel: only the group owner may broadcast a
-                # message. Control packets (kill/stop/mute/...) still pass so
+                # uncrypted. Control packets (kill/stop/mute/...) still pass so
                 # membership bookkeeping stays correct. The sender's user_id is
                 # the last field of every media packet (payload + SEP + user_id).
                 if self.owner_only and flag not in self._control_flags:
@@ -135,7 +136,7 @@ class ServerFunctions(UserDatabase, GroupDatabase):
                     out_data, sender_addr, group_id = self.data_queue.get_nowait()
                     for addr in list(self.group_members_live.get(group_id, ())):
                         if addr != sender_addr:
-                            self.sock.sendto(out_data, addr)
+                            secure_sendto(self.sock, out_data, addr)
                 else:
                     time.sleep(0.01)
             except OSError:
@@ -146,7 +147,7 @@ class ServerFunctions(UserDatabase, GroupDatabase):
 
         while self.is_streaming:
             try:
-                out_data, addr = self.sock.recvfrom(self.CHUNK_SIZE * 2)
+                out_data, addr = secure_recvfrom(self.sock, self.CHUNK_SIZE * 2)
                 if addr not in self.addr_list:
                     print(f"New query socket connected at: {addr}")
                     self.addr_list.append(addr)
@@ -288,7 +289,7 @@ class ServerFunctions(UserDatabase, GroupDatabase):
                         answer = str(gid) if gid else ''
 
                     packet = sql_query_flags[flag_key]+SEP+answer.encode()
-                    self.sock.sendto(packet, addr)
+                    secure_sendto(self.sock, packet, addr)
 
             except OSError:
                 # socket closed / network gone -> stop the handler

@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import socket
 from Project_Classes.prime_gui_class import PrimeGui
 
-HOST = '192.168.98.103'
+HOST = '192.168.98.153'
 
 VIDEO_PORT, TEXT_PORT, AUDIO_PORT, QUERY_PORT, ANNOUNCE_PORT = 3005, 3006, 3007, 3008, 3009
 

@@ -9,6 +9,7 @@ from PIL import Image
 import math
 from Project_Classes.general_classes import SockFunctions, SEP, client_actions
 from Project_Classes.video_box import VideoBox
+from Encryption.encrypt_class import secure_sendto, secure_recvfrom
 
 
 CHUNK_SIZE = 50000
@@ -66,7 +67,7 @@ class VideoGui(SockFunctions, ctk.CTkFrame):
             self.box_dict.clear()
             self.chatters_dict = {}
             self.new_images = queue.Queue()
-            self.sock.sendto(client_actions['kill']+SEP+self.user_id.encode(), self.server_addr)
+            secure_sendto(self.sock, client_actions['kill']+SEP+self.user_id.encode(), self.server_addr)
             self.alive = False
 
     def enter_chat(self):
@@ -82,7 +83,7 @@ class VideoGui(SockFunctions, ctk.CTkFrame):
         if self.camera_active.is_set():
             self.camera_active.clear()
             self.new_images.put((self.name, ""))
-            self.sock.sendto(client_actions['stop']+SEP+self.user_id.encode(), self.server_addr)
+            secure_sendto(self.sock, client_actions['stop']+SEP+self.user_id.encode(), self.server_addr)
             print('sent stop signal to server')
             return True
         else:
@@ -198,7 +199,7 @@ class VideoGui(SockFunctions, ctk.CTkFrame):
                 encoded, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 50])
                 packet = buffer.tobytes()+SEP+self.user_id.encode()
                 try:
-                    self.sock.sendto(packet, self.server_addr)
+                    secure_sendto(self.sock, packet, self.server_addr)
                 except OSError:
                     break
 
@@ -217,7 +218,7 @@ class VideoGui(SockFunctions, ctk.CTkFrame):
                 # trailing "SEP + user_id" and makes the packet unparseable — so that
                 # sender's video box never appears. rsplit(SEP, 1) also keeps us safe
                 # if the JPEG bytes happen to contain the separator sequence.
-                packet, sender_id = self.sock.recvfrom(65535)[0].rsplit(SEP, 1)
+                packet, sender_id = secure_recvfrom(self.sock, 65535)[0].rsplit(SEP, 1)
                 sender_id = sender_id.decode()
 
                 if packet == client_actions['kill']:
@@ -271,7 +272,7 @@ class VideoGui(SockFunctions, ctk.CTkFrame):
         try:
             # Tell the server (and thus the other clients) we're leaving so our
             # box gets removed, then close the socket.
-            self.sock.sendto(client_actions['kill']+SEP+self.user_id.encode(), self.server_addr)
+            secure_sendto(self.sock, client_actions['kill']+SEP+self.user_id.encode(), self.server_addr)
         except Exception:
             pass
         try:

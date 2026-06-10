@@ -4,11 +4,12 @@ import threading
 import socket
 import keyboard
 from Project_Classes.general_classes import SockFunctions, SEP
+from Encryption.encrypt_class import secure_sendto, secure_recvfrom
 
 CHUNK_SIZE = 1024
 class TextGui(SockFunctions, ctk.CTkFrame):
     def __init__(self, sock: socket.socket,query_sock : socket.socket,parent: ctk.CTkFrame,user_id = '0', group_id = '0',
-                 can_send = True, placeholder = "Type a message...", read_only_notice = "Only the group owner can post here."):
+                 can_send = True, placeholder = "Type a uncrypted...", read_only_notice = "Only the group owner can post here."):
 
         # --- Inheritance init ---
         SockFunctions.__init__(self,sock=sock,query_sock=query_sock,user_id=user_id,group_id=group_id)
@@ -90,7 +91,7 @@ class TextGui(SockFunctions, ctk.CTkFrame):
             entry_text = self.entry.get()
             if entry_text:
                 data = entry_text.encode()
-                self.sock.sendto(data+SEP+self.user_id.encode(), self.server_addr)
+                secure_sendto(self.sock, data+SEP+self.user_id.encode(), self.server_addr)
 
                 self.add_message(self.name, entry_text)
                 self.entry.delete(0, ctk.END)
@@ -98,16 +99,18 @@ class TextGui(SockFunctions, ctk.CTkFrame):
     def __output_handler(self):
         while self.running:
             try:
-                packet,sender_id = self.sock.recvfrom(CHUNK_SIZE)[0].split(SEP)
+                packet, sender_id = secure_recvfrom(self.sock, CHUNK_SIZE)[0].split(SEP)
             except OSError:
                 break
             sender_id = sender_id.decode()
+
+            message = packet.decode()
 
             if not self.chatters_dict.get(sender_id):
                 sender_username = self.find_username_by_id(sender_id)
                 self.chatters_dict[sender_id] = sender_username
 
-            self.chat_queue.put((packet.decode(), self.chatters_dict[sender_id]))
+            self.chat_queue.put((message, self.chatters_dict[sender_id]))
 
     def leave_chat(self):
         if self.alive:

@@ -1,11 +1,4 @@
-"""
-Test server for the multi-group feature.
 
-Starts the five UDP servers (video / text / audio / query / announcements) on
-localhost. Run this once; then launch two clients with final_client.py.
-
-Requires MySQL to be running (the query/chat servers use the talkhobi DB).
-"""
 import os
 import sys
 
