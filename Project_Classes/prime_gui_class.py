@@ -1,3 +1,4 @@
+import customtkinter
 import customtkinter as ctk
 from Project_Classes.login_class import TalkHobiLogin
 from Project_Classes.signup_class import TalkHobiSignup
@@ -14,13 +15,11 @@ class PrimeGui(ctk.CTk):
                                 announcements_socket: socket.socket = None):
 
         super().__init__()
-        self._set_appearance_mode("dark")
-
+        customtkinter.set_appearance_mode("dark")
         # --- Window Configuration ---
         self.title("Client")
         self.geometry("1100x720")
         self.minsize(900, 600)
-
         self.video_socket = video_socket
         self.text_socket = text_socket
         self.audio_socket = audio_socket
