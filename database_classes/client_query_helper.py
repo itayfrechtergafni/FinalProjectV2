@@ -1,9 +1,3 @@
-"""
-Client-side helper for the group query flags.
-
-Runs request/response round-trips over the (already connected) query socket
-and parses the replies, including the COLSEP/ROWSEP-encoded list answers.
-"""
 import socket
 from Project_Classes.protocol_translator import SEP, COLSEP, ROWSEP, sql_query_flags
 
