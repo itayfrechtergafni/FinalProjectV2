@@ -4,7 +4,7 @@ import threading
 import socket
 import keyboard
 from Project_Classes.general_classes import SockFunctions, SEP
-from Encryption.encrypt_class import secure_sendto, secure_recvfrom
+from Encryption.encrypt_class import client_send, client_recv
 
 CHUNK_SIZE = 1024
 class TextGui(SockFunctions, ctk.CTkFrame):
@@ -91,7 +91,7 @@ class TextGui(SockFunctions, ctk.CTkFrame):
             entry_text = self.entry.get()
             if entry_text:
                 data = entry_text.encode()
-                secure_sendto(self.sock, data+SEP+self.user_id.encode(), self.server_addr)
+                client_send(self.sock, data + SEP + self.user_id.encode(), self.server_addr)
 
                 self.add_message(self.name, entry_text)
                 self.entry.delete(0, ctk.END)
@@ -99,7 +99,7 @@ class TextGui(SockFunctions, ctk.CTkFrame):
     def __output_handler(self):
         while self.running:
             try:
-                packet, sender_id = secure_recvfrom(self.sock, CHUNK_SIZE)[0].split(SEP)
+                packet, sender_id = client_recv(self.sock, CHUNK_SIZE)[0].split(SEP)
             except OSError:
                 break
             sender_id = sender_id.decode()

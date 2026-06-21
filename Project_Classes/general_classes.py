@@ -5,7 +5,11 @@ from database_classes.group_database_class import GroupDatabase
 import queue
 import threading
 from Project_Classes.protocol_translator import SEP, COLSEP, ROWSEP, sql_query_flags, client_actions
-from Encryption.encrypt_class import secure_sendto, secure_recvfrom
+from Encryption.encrypt_class import (
+    client_send, client_recv,
+    secure_sendto, aes_decrypt_bytes,
+    create_rsa_keys, server_handle_handshake,
+)
 
 
 class SockFunctions:
@@ -27,13 +31,13 @@ class SockFunctions:
             self.chatters_dict[self.user_id] = self.name
 
 
-        secure_sendto(self.sock, self.user_id.encode(), self.server_addr)
+        client_send(self.sock, self.user_id.encode(), self.server_addr)
         print(f"handshake with server")
 
     def find_username_by_id(self, user_id):
-        secure_sendto(self.query_sock,
-            sql_query_flags['username_by_user_ID'] + SEP + user_id.encode(), self.query_addr)
-        query_answer, _ = secure_recvfrom(self.query_sock, 1024)
+        client_send(self.query_sock,
+                    sql_query_flags['username_by_user_ID'] + SEP + user_id.encode(), self.query_addr)
+        query_answer, _ = client_recv(self.query_sock, 1024)
         query_answer = query_answer.split(SEP)
 
         return query_answer[1].decode()
@@ -41,9 +45,9 @@ class SockFunctions:
     def send_join(self):
         # Tell the chat server which group this socket belongs to:
         #   join + SEP + user_id + SEP + group_id
-        secure_sendto(self.sock,
-            client_actions['join'] + SEP + self.user_id.encode() + SEP + self.group_id.encode(),
-            self.server_addr)
+        client_send(self.sock,
+                    client_actions['join'] + SEP + self.user_id.encode() + SEP + self.group_id.encode(),
+                    self.server_addr)
 
 
 
@@ -61,6 +65,11 @@ class ServerFunctions(UserDatabase, GroupDatabase):
         self.group_members_live = {}   # chat: group_id -> set of live addrs
         self.data_queue = queue.Queue()  # list of what I am sending to the clients.
         self.CHUNK_SIZE = CHUNK_SIZE
+        # --- Encryption ---
+        # This server's RSA key pair (handed out during the handshake) and the
+        # per-client AES keys we collect: {client_addr: aes_key}.
+        self.rsa_private, self.rsa_public = create_rsa_keys()
+        self.client_keys = {}
         # An "announcements_server" relays exactly like a chat_server, except only
         # the group owner is allowed to broadcast (everyone else is read-only).
         self.owner_only = (server_type == "announcements_server")
@@ -89,7 +98,17 @@ class ServerFunctions(UserDatabase, GroupDatabase):
 
         while self.is_streaming:
             try:
-                out_data, addr = secure_recvfrom(self.sock, self.CHUNK_SIZE * 2)
+                raw, addr = self.sock.recvfrom(self.CHUNK_SIZE * 2)
+
+                # RSA->AES handshake (plaintext). Once done, addr is in client_keys.
+                if server_handle_handshake(self.sock, raw, addr,
+                                           self.rsa_private, self.rsa_public, self.client_keys):
+                    continue
+                key = self.client_keys.get(addr)
+                if key is None:
+                    continue  # data before handshake completed -> ignore
+                out_data = aes_decrypt_bytes(raw, key)
+
                 parts = out_data.split(SEP)
                 flag = parts[0]
 
@@ -136,7 +155,9 @@ class ServerFunctions(UserDatabase, GroupDatabase):
                     out_data, sender_addr, group_id = self.data_queue.get_nowait()
                     for addr in list(self.group_members_live.get(group_id, ())):
                         if addr != sender_addr:
-                            secure_sendto(self.sock, out_data, addr)
+                            key = self.client_keys.get(addr)
+                            if key is not None:
+                                secure_sendto(self.sock, out_data, addr, key)
                 else:
                     time.sleep(0.01)
             except OSError:
@@ -147,7 +168,17 @@ class ServerFunctions(UserDatabase, GroupDatabase):
 
         while self.is_streaming:
             try:
-                out_data, addr = secure_recvfrom(self.sock, self.CHUNK_SIZE * 2)
+                raw, addr = self.sock.recvfrom(self.CHUNK_SIZE * 2)
+
+                # RSA->AES handshake (plaintext) before any real query.
+                if server_handle_handshake(self.sock, raw, addr,
+                                           self.rsa_private, self.rsa_public, self.client_keys):
+                    continue
+                key = self.client_keys.get(addr)
+                if key is None:
+                    continue  # query before handshake completed -> ignore
+                out_data = aes_decrypt_bytes(raw, key)
+
                 if addr not in self.addr_list:
                     print(f"New query socket connected at: {addr}")
                     self.addr_list.append(addr)
@@ -289,7 +320,7 @@ class ServerFunctions(UserDatabase, GroupDatabase):
                         answer = str(gid) if gid else ''
 
                     packet = sql_query_flags[flag_key]+SEP+answer.encode()
-                    secure_sendto(self.sock, packet, addr)
+                    secure_sendto(self.sock, packet, addr, key)
 
             except OSError:
                 # socket closed / network gone -> stop the handler

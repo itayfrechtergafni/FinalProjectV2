@@ -6,7 +6,7 @@ import time
 import queue
 from Project_Classes.general_classes import SockFunctions, SEP, client_actions
 from Project_Classes.video_gui_class import VideoGui
-from Encryption.encrypt_class import secure_sendto, secure_recvfrom
+from Encryption.encrypt_class import client_send, client_recv
 FORMAT = pyaudio.paInt16  # 16-bit resolution
 CHANNELS = 1  # Mono Sound
 RATE = 44100  # Sample rate (44.1kHz)
@@ -66,12 +66,12 @@ class AudioClient(SockFunctions):
             self.mic_status.clear()
             self.in_queue = queue.Queue()
             packet = client_actions['mute']+SEP+self.user_id.encode()
-            secure_sendto(self.sock, packet, self.server_addr)
+            client_send(self.sock, packet, self.server_addr)
             return True
         else:
             print("unmute")
             self.mic_status.set()
-            secure_sendto(self.sock, client_actions['unmute']+SEP+self.user_id.encode(), self.server_addr)
+            client_send(self.sock, client_actions['unmute'] + SEP + self.user_id.encode(), self.server_addr)
             return False
 
     def leave_chat(self):
@@ -81,7 +81,7 @@ class AudioClient(SockFunctions):
             self.in_queue = queue.Queue()
             self.socket_status.clear()
             self.mic_status.clear()
-            secure_sendto(self.sock, client_actions['kill'] + SEP + self.user_id.encode(), self.server_addr)
+            client_send(self.sock, client_actions['kill'] + SEP + self.user_id.encode(), self.server_addr)
 
     def enter_chat(self):
         if not self.socket_status.is_set() and not self.mic_status.is_set():
@@ -111,7 +111,7 @@ class AudioClient(SockFunctions):
         except Exception:
             pass
         try:
-            secure_sendto(self.sock, client_actions['kill']+SEP+self.user_id.encode(), self.server_addr)
+            client_send(self.sock, client_actions['kill'] + SEP + self.user_id.encode(), self.server_addr)
         except Exception:
             pass
         try:
@@ -158,7 +158,7 @@ class AudioClient(SockFunctions):
                 except queue.Empty:
                     continue
                 try:
-                    secure_sendto(self.sock, in_data, self.server_addr)
+                    client_send(self.sock, in_data, self.server_addr)
                 except OSError:
                     return
             time.sleep(0.01)
@@ -177,7 +177,7 @@ class AudioClient(SockFunctions):
                     return
                 time.sleep(0.01)
                 try:
-                    out_data, sender_addr = secure_recvfrom(self.sock, CHUNK_SIZE * 2)
+                    out_data, sender_addr = client_recv(self.sock, CHUNK_SIZE * 2)
                 except OSError:
                     return
                 if out_data.count(SEP) >= 1:

@@ -2,7 +2,10 @@
   <dictionary name="project">
     <words>
       <w>aesgcm</w>
+      <w>aeskey</w>
+      <w>bufsize</w>
       <w>hobi</w>
+      <w>recvfrom</w>
       <w>uncrypted</w>
     </words>
   </dictionary>

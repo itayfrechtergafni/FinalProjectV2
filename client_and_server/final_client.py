@@ -5,8 +5,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import socket
 from Project_Classes.prime_gui_class import PrimeGui
+from Encryption.encrypt_class import client_handshake
 
-HOST = '192.168.98.153'
+HOST = 'localhost'
 
 VIDEO_PORT, TEXT_PORT, AUDIO_PORT, QUERY_PORT, ANNOUNCE_PORT = 3005, 3006, 3007, 3008, 3009
 
@@ -14,6 +15,8 @@ VIDEO_PORT, TEXT_PORT, AUDIO_PORT, QUERY_PORT, ANNOUNCE_PORT = 3005, 3006, 3007,
 def connect(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.connect((HOST, port))
+    # Exchange an RSA->AES session key with the server before any real traffic.
+    client_handshake(sock)
     return sock
 
 

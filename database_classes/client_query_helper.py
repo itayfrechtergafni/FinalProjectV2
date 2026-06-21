@@ -1,6 +1,6 @@
 import socket
 from Project_Classes.protocol_translator import SEP, COLSEP, ROWSEP, sql_query_flags
-from Encryption.encrypt_class import secure_sendto, secure_recvfrom
+from Encryption.encrypt_class import client_send, client_recv
 
 RECV_SIZE = 65535
 
@@ -14,8 +14,8 @@ class ClientQueryHelper:
         payload = sql_query_flags[flag_name]
         for arg in args:
             payload += SEP + str(arg).encode()
-        secure_sendto(self.query_sock, payload, self.query_addr) # sends after adding all parameters needed for query
-        reply = secure_recvfrom(self.query_sock, RECV_SIZE)[0] # recvs from server
+        client_send(self.query_sock, payload, self.query_addr) # sends after adding all parameters needed for query
+        reply = client_recv(self.query_sock, RECV_SIZE)[0] # recvs from server
         parts = reply.split(SEP, 1)   # [flag, answer]
         return parts[1] if len(parts) > 1 else b''
 

@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from Project_Classes.general_classes import SEP, sql_query_flags
-from Encryption.encrypt_class import secure_sendto, secure_recvfrom
+from Encryption.encrypt_class import client_send, client_recv
 
 CHUNK_SIZE = 1024
 
@@ -83,17 +83,17 @@ class TalkHobiLogin(ctk.CTkFrame):
     def login_button_command(self):
         field1 = self.username_entry.get()
         password = self.password_entry.get()
-        secure_sendto(self.query_sock,
-            sql_query_flags['username_login']+SEP+field1.encode()+SEP+password.encode(),
-            self.server_addr)
-        query_answer = secure_recvfrom(self.query_sock, CHUNK_SIZE)[0].split(SEP)
+        client_send(self.query_sock,
+                    sql_query_flags['username_login'] + SEP + field1.encode() + SEP + password.encode(),
+                    self.server_addr)
+        query_answer = client_recv(self.query_sock, CHUNK_SIZE)[0].split(SEP)
         print(query_answer)
         if query_answer[0] == sql_query_flags['username_login']:
             if query_answer[1] == b'True':
                 self.login_button.configure(fg_color="#43b027", hover_color="#368f1f")
                 print("Logging in...")
-                secure_sendto(self.query_sock, sql_query_flags['user_ID_by_username']+SEP+field1.encode(), self.server_addr)
-                query_answer, _ = secure_recvfrom(self.query_sock, CHUNK_SIZE)
+                client_send(self.query_sock, sql_query_flags['user_ID_by_username'] + SEP + field1.encode(), self.server_addr)
+                query_answer, _ = client_recv(self.query_sock, CHUNK_SIZE)
                 query_answer = query_answer.split(SEP)
 
                 if query_answer[0] == sql_query_flags['user_ID_by_username']:
