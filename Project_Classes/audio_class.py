@@ -60,6 +60,60 @@ class AudioClient(SockFunctions):
     def set_addr(self,addr):
         self.server_addr = addr
 
+    def get_input_devices(self):
+        # On Windows the same physical device is listed once per host API
+        # (MME, WASAPI, DirectSound...), so dedupe by name and keep the first
+        # index we see for each unique name.
+        devices = []
+        seen = set()
+        for i in range(self.audio.get_device_count()):
+            info = self.audio.get_device_info_by_index(i)
+            name = info['name']
+            if info['maxInputChannels'] > 0 and name not in seen:
+                seen.add(name)
+                devices.append((i, name))
+        return devices
+
+    def get_output_devices(self):
+        devices = []
+        seen = set()
+        for i in range(self.audio.get_device_count()):
+            info = self.audio.get_device_info_by_index(i)
+            name = info['name']
+            if info['maxOutputChannels'] > 0 and name not in seen:
+                seen.add(name)
+                devices.append((i, name))
+        return devices
+
+    def get_default_input_name(self):
+        try:
+            return self.audio.get_default_input_device_info()['name']
+        except Exception:
+            return None
+
+    def get_default_output_name(self):
+        try:
+            return self.audio.get_default_output_device_info()['name']
+        except Exception:
+            return None
+
+    def change_devices(self, input_idx, output_idx):
+        was_active = self.stream.is_active()
+        try:
+            self.stream.stop_stream()
+            self.stream.close()
+        except Exception:
+            pass
+        self.stream = self.audio.open(
+            format=FORMAT, channels=CHANNELS,
+            rate=RATE, input=True, output=True,
+            input_device_index=input_idx,
+            output_device_index=output_idx,
+            frames_per_buffer=CHUNK_SIZE // 2,
+            stream_callback=self.__callback)
+        if was_active:
+            self.stream.start_stream()
+
     def mic_switch(self):
         if self.mic_status.is_set():
             print("mute")

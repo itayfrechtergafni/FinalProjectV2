@@ -4,6 +4,7 @@ from Project_Classes.text_gui_class import TextGui
 from Project_Classes.audio_class import AudioClient
 from database_classes.client_query_helper import ClientQueryHelper
 import socket
+import threading
 
 
 
@@ -142,12 +143,24 @@ class ChatsClass(ctk.CTkFrame):
             hover_color="#14375e",
             font=ctk.CTkFont(size=25, weight="bold")
         )
+        audio_settings_button = ctk.CTkButton(
+            self.controls_frame,
+            text="🎛",
+            command=self.open_audio_settings,
+            width=60,
+            height=40,
+            fg_color="#2a2a2e",
+            hover_color="#3a3a3e",
+            font=ctk.CTkFont(size=20)
+        )
         # Default UI State
         self.controls_dict = {
             'mic': mic_button,
             'cam': camera_button,
             'exit': exit_button,
-            'join': join_button,}
+            'join': join_button,
+            'audio_settings': audio_settings_button,
+        }
 
         # The announcements channel is a text channel on its own relay where
         # only the group owner can post; everyone else sees it read-only.
@@ -197,11 +210,58 @@ class ChatsClass(ctk.CTkFrame):
             self.controls_dict['mic'].configure(fg_color="#1f538d", hover_color="#14375e")
         self.chats["VideoGui"].change_box_outline()
 
+    def open_audio_settings(self):
+        audio: AudioClient = self.chats.get("AudioClient")
+        inputs = audio.get_input_devices()
+        outputs = audio.get_output_devices()
+
+        win = ctk.CTkToplevel(self)
+        win.title("Audio Settings")
+        win.geometry("420x240")
+        win.resizable(False, False)
+        win.grab_set()
+
+        ctk.CTkLabel(win, text="Audio Settings", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(20, 10))
+
+        input_names = [name for _, name in inputs]
+        output_names = [name for _, name in outputs]
+
+        # Pre-select the system default device (fall back to the first entry).
+        default_in = audio.get_default_input_name()
+        default_out = audio.get_default_output_name()
+        in_default = default_in if default_in in input_names else (input_names[0] if input_names else "None")
+        out_default = default_out if default_out in output_names else (output_names[0] if output_names else "None")
+
+        in_var = ctk.StringVar(value=in_default)
+        out_var = ctk.StringVar(value=out_default)
+
+        row_in = ctk.CTkFrame(win, fg_color="transparent")
+        row_in.pack(fill="x", padx=20, pady=6)
+        ctk.CTkLabel(row_in, text="Microphone (In):", width=130, anchor="w").pack(side="left")
+        ctk.CTkOptionMenu(row_in, values=input_names, variable=in_var, width=240).pack(side="left")
+
+        row_out = ctk.CTkFrame(win, fg_color="transparent")
+        row_out.pack(fill="x", padx=20, pady=6)
+        ctk.CTkLabel(row_out, text="Speaker (Out):", width=130, anchor="w").pack(side="left")
+        ctk.CTkOptionMenu(row_out, values=output_names, variable=out_var, width=240).pack(side="left")
+
+        def apply():
+            in_name = in_var.get()
+            out_name = out_var.get()
+            in_idx = next((i for i, n in inputs if n == in_name), None)
+            out_idx = next((i for i, n in outputs if n == out_name), None)
+            if in_idx is not None and out_idx is not None:
+                threading.Thread(target=audio.change_devices, args=(in_idx, out_idx), daemon=True).start()
+            win.destroy()
+
+        ctk.CTkButton(win, text="Apply", command=apply, fg_color="#1f538d", hover_color="#14375e").pack(pady=14)
+
     def join_button_command(self):
         self.controls_dict['join'].grid_forget()
         self.controls_dict['mic'].grid(column=1, row=0, padx=10, pady=10)
         self.controls_dict['cam'].grid(column=2, row=0, padx=10, pady=10)
         self.controls_dict['exit'].grid(column=3, row=0, padx=10, pady=10)
+        self.controls_dict['audio_settings'].grid(column=4, row=0, padx=10, pady=10)
         self.main_container_tb.configure(text="")
         self.main_container_tb.grid_forget()
         self.chats.get("VideoGui").enter_chat()
@@ -211,6 +271,7 @@ class ChatsClass(ctk.CTkFrame):
         self.controls_dict['exit'].grid_forget()
         self.controls_dict['cam'].grid_forget()
         self.controls_dict['mic'].grid_forget()
+        self.controls_dict['audio_settings'].grid_forget()
         self.controls_dict['join'].grid(column=1, row=0, padx=10, pady=10)
         self.main_container_tb.configure(text="You have left the chat room.")
         self.main_container_tb.grid(row=1,column=0)
@@ -252,6 +313,7 @@ class ChatsClass(ctk.CTkFrame):
                         self.controls_dict['mic'].grid(column=1, row=0, padx=10, pady=10)
                         self.controls_dict['cam'].grid(column=2, row=0, padx=10, pady=10)
                         self.controls_dict['exit'].grid(column=3, row=0, padx=10, pady=10)
+                        self.controls_dict['audio_settings'].grid(column=4, row=0, padx=10, pady=10)
                         self.chats["AudioClient"].enter_chat()
                     frame.enter_chat()
                 except:
