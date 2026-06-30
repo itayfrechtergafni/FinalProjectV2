@@ -7,7 +7,6 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 iv_size = 12          # AES-GCM standard init-vector length
 rsa_key_size = 2048   # RSA key size in bits
 
-# --- handshake markers sent in PLAINTEXT ---
 
 HELLO_FLAG = b"__HELLO__"     # client -> server: "give me your public key"
 PUBKEY_FLAG = b"__GET_PUBLIC_KEY__"   # server -> client: PUBKEY_FLAG + <rsa public key (PEM)>
@@ -67,7 +66,6 @@ def aes_decrypt(token: str, aes_key) -> str:
     return aes_decrypt_bytes(base64.b64decode(token), aes_key).decode("utf-8")
 
 
-#  Transport wrappers  (explicit key -- used by the SERVER, which holds a different key per client address)
 
 def secure_sendto(sock, data: bytes, addr, aes_key):
     return sock.sendto(aes_encrypt_bytes(data, aes_key), addr)
@@ -81,12 +79,7 @@ def secure_recvfrom(sock, bufsize, aes_key):
 #  SERVER side handshake
 
 def server_handle_handshake(sock, raw, addr, private_key, public_key, keys):
-    """Process a possibly-handshake datagram.
 
-    Returns True if `raw` was a handshake packet (and was handled here), or
-    False if it is ordinary (encrypted) application data the caller must
-    decrypt with keys[addr].
-    """
 
     if raw == HELLO_FLAG:
         sock.sendto(PUBKEY_FLAG + export_public_key(public_key), addr)
@@ -112,7 +105,6 @@ _client_keys = {}   # id(sock) -> raw aes key
 
 
 def client_handshake(sock):
-    """get the rsa public key and send our aes key encrypted"""
     aes_key = new_aes_key()
     sock.send(HELLO_FLAG)
     reply = sock.recv(65535)
@@ -128,10 +120,8 @@ def get_key(sock):
 
 
 def client_send(sock, data: bytes, addr):
-    """Client-side secure send: encrypts with this socket's own key."""
     return secure_sendto(sock, data, addr, _client_keys[id(sock)])
 
 
 def client_recv(sock, bufsize):
-    """Client-side secure recv: decrypts with this socket's own key."""
     return secure_recvfrom(sock, bufsize, _client_keys[id(sock)])

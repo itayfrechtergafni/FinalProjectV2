@@ -38,7 +38,7 @@ class AudioClient(SockFunctions):
         self.socket_status = threading.Event()
         self.mic_status.clear()
         self.socket_status.clear()
-        self.running = True   # cleared on shutdown to stop the worker loops
+        self.running = True
 
         # --- Queue init ---
         self.in_queue = queue.Queue()
@@ -61,9 +61,6 @@ class AudioClient(SockFunctions):
         self.server_addr = addr
 
     def get_input_devices(self):
-        # On Windows the same physical device is listed once per host API
-        # (MME, WASAPI, DirectSound...), so dedupe by name and keep the first
-        # index we see for each unique name.
         devices = []
         seen = set()
         for i in range(self.audio.get_device_count()):
@@ -141,19 +138,18 @@ class AudioClient(SockFunctions):
         if not self.socket_status.is_set() and not self.mic_status.is_set():
             print("enter audio chat")
             self.in_queue = queue.Queue()
-            self.out_queue = queue.Queue(maxsize=5)   # drop any audio still queued for playback
-            self.__drain_socket()                     # discard audio buffered while we were away
+            self.out_queue = queue.Queue(maxsize=5)
+            self.__drain_socket()                     # audio buffered while we were away
             self.alive = True
             self.send_join()   # register this socket with our group on the server
             self.socket_status.set()
             self.mic_status.set()
 
     def close(self):
-        # Stop the worker loops, tear down the audio stream and close the socket.
         self.running = False
         self.alive = False
-        self.socket_status.set()    # unblock __output_handler if parked
-        self.mic_status.set()       # unblock __input_handler if parked
+        self.socket_status.set()
+        self.mic_status.set()
         try:
             if self.stream.is_active():
                 self.stream.stop_stream()
@@ -177,8 +173,7 @@ class AudioClient(SockFunctions):
     # --- Private Methods ---
 
     def __drain_socket(self):
-        # Throw away audio the server buffered for us while we were away so a
-        # stale burst isn't played back when we re-enter the chat.
+
         self.sock.setblocking(False)
         try:
             while True:
@@ -205,10 +200,10 @@ class AudioClient(SockFunctions):
             while self.alive:
                 if not self.mic_status.is_set():  # checking to see if we need to send audio
                     self.mic_status.wait()
-                if not self.running:   # woken for shutdown
+                if not self.running:
                     return
                 try:
-                    in_data = self.in_queue.get(timeout=0.1)  # blocks instead of busy-waiting
+                    in_data = self.in_queue.get(timeout=0.1)
                 except queue.Empty:
                     continue
                 try:
@@ -227,7 +222,7 @@ class AudioClient(SockFunctions):
                     print('waiting for socket to be set')
                     self.socket_status.wait()
                     print('socket is set')
-                if not self.running:   # woken for shutdown
+                if not self.running:
                     return
                 time.sleep(0.01)
                 try:

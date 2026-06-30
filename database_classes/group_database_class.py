@@ -1,25 +1,16 @@
 import mysql.connector
 import threading
 
-# --- Connection settings (same MySQL instance / database as the users table) ---
+# --- Connection settings ---
 DB_HOST = "localhost"
 DB_USER = "root"
 DB_PASSWORD = "Itay2008!"
 DB_PORT = 3306
 DB_NAME = "talkhobi"
-USER_TABLE = "user_table"   # existing users table, referenced by the foreign keys
-
+USER_TABLE = "user_table"
 
 class GroupDatabase:
-    """
-    Stores video/text groups in two tables:
 
-        groups_table   -> one row per group  (group_id, group_name, owner_id, created_at)
-        group_members  -> one row per (group, member) pair  (group_id, user_id, role)
-
-    Membership is a proper many-to-many junction table, so "which groups is
-    user X in?" and "add / remove one member" are single, atomic queries.
-    """
 
     def __init__(self, db_name: str = DB_NAME,
                  groups_table: str = "groups_table",
@@ -87,7 +78,6 @@ class GroupDatabase:
     # --- Group actions ---
 
     def create_group(self, group_name: str, owner_id: int):
-        """Create a group and add its owner as the first member. Returns the new group_id (or None)."""
         with self.lock:
             conn = self.open_connection()
             cursor = conn.cursor()
@@ -109,7 +99,6 @@ class GroupDatabase:
                 conn.close()
 
     def delete_group(self, group_id: int):
-        """Delete a group; ON DELETE CASCADE removes its membership rows too."""
         with self.lock:
             conn = self.open_connection()
             cursor = conn.cursor()
@@ -152,13 +141,12 @@ class GroupDatabase:
                 conn.commit()
                 return True
             except Exception as e:
-                print(e)   # e.g. duplicate key if already a member, or unknown group/user
+                print(e)
                 return False
             finally:
                 conn.close()
 
     def remove_member(self, group_id: int, user_id: int):
-        """Remove a member. Refuses to remove the owner (delete the group instead)."""
         with self.lock:
             conn = self.open_connection()
             cursor = conn.cursor()
@@ -177,7 +165,6 @@ class GroupDatabase:
     # --- Queries ---
 
     def get_group(self, group_id: int):
-        """Returns (group_id, group_name, owner_id, created_at) or None."""
         conn = self.open_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -197,7 +184,6 @@ class GroupDatabase:
         return rows
 
     def get_group_id_by_name(self, group_name: str):
-        """First group_id matching the name (names aren't unique), or None."""
         conn = self.open_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -208,7 +194,6 @@ class GroupDatabase:
         return row[0] if row else None
 
     def list_groups_for_user(self, user_id: int):
-        """Every group the user belongs to: list of (group_id, group_name, owner_id)."""
         conn = self.open_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -223,7 +208,6 @@ class GroupDatabase:
         return rows
 
     def list_members(self, group_id: int):
-        """Members of a group: list of (user_id, user_name, role)."""
         conn = self.open_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -258,7 +242,6 @@ class GroupDatabase:
         return found
 
     def print_tables(self):
-        """Dump both tables to the console for debugging."""
         conn = self.open_connection()
         cursor = conn.cursor()
 
@@ -285,9 +268,6 @@ class GroupDatabase:
         conn.close()
 
 
-# ============================================================
-# Simple command-line manager: create groups and run actions
-# ============================================================
 
 def _print_groups(db: GroupDatabase):
     groups = db.get_all_groups()

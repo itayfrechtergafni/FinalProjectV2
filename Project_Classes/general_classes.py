@@ -53,21 +53,19 @@ class SockFunctions:
 
 class ServerFunctions(UserDatabase, GroupDatabase):
     def __init__(self, sock: socket.socket, CHUNK_SIZE: int,server_type: str,server_name: str):
-        # Both base classes set up their own tables; init them explicitly
-        # (UserDatabase.__init__ doesn't cooperatively call super()).
         UserDatabase.__init__(self, 'talkhobi', 'user_table', 5)
         GroupDatabase.__init__(self)
         self.sock = sock
         self.is_streaming = True
         self.server_name = server_name
-        self.addr_list = []  # query-socket clients (request/response only)
-        self.addr_to_group = {}        # chat: addr -> group_id it joined
-        self.group_members_live = {}   # chat: group_id -> set of live addrs
+        self.addr_list = []
+        self.addr_to_group = {}        #  addr : group_id
+        self.group_members_live = {}   # group_id -> set of live addrs
         self.data_queue = queue.Queue()  # list of what I am sending to the clients.
         self.CHUNK_SIZE = CHUNK_SIZE
         # --- Encryption ---
         # This server's RSA key pair (handed out during the handshake) and the
-        # per-client AES keys we collect: {client_addr: aes_key}.
+        # client AES keys we collect: {client_addr: aes_key}
         self.rsa_private, self.rsa_public = create_rsa_keys()
         self.client_keys = {}
         # An "announcements_server" relays exactly like a chat_server, except only
@@ -100,7 +98,7 @@ class ServerFunctions(UserDatabase, GroupDatabase):
             try:
                 raw, addr = self.sock.recvfrom(self.CHUNK_SIZE * 2)
 
-                # RSA->AES handshake (plaintext). Once done, addr is in client_keys.
+                # RSA->AES handshake
                 if server_handle_handshake(self.sock, raw, addr,
                                            self.rsa_private, self.rsa_public, self.client_keys):
                     continue
@@ -125,17 +123,13 @@ class ServerFunctions(UserDatabase, GroupDatabase):
                 if group_id is None:
                     continue
 
-                # Announcements channel: only the group owner may broadcast a
-                # uncrypted. Control packets (kill/stop/mute/...) still pass so
-                # membership bookkeeping stays correct. The sender's user_id is
-                # the last field of every media packet (payload + SEP + user_id).
+
                 if self.owner_only and flag not in self._control_flags:
                     sender_id = parts[-1].decode()
                     if not self.is_owner(int(group_id), int(sender_id)):
                         continue
 
-                # tag the packet with its group so the sender's later removal
-                # can't strand the relay (e.g. a kill must still reach the group)
+
                 if len(out_data) > 1:
                     self.data_queue.put((out_data, addr, group_id))
 
@@ -170,13 +164,13 @@ class ServerFunctions(UserDatabase, GroupDatabase):
             try:
                 raw, addr = self.sock.recvfrom(self.CHUNK_SIZE * 2)
 
-                # RSA->AES handshake (plaintext) before any real query.
+                # RSA->AES handshake before any real query.
                 if server_handle_handshake(self.sock, raw, addr,
                                            self.rsa_private, self.rsa_public, self.client_keys):
                     continue
                 key = self.client_keys.get(addr)
                 if key is None:
-                    continue  # query before handshake completed -> ignore
+                    continue
                 out_data = aes_decrypt_bytes(raw, key)
 
                 if addr not in self.addr_list:
@@ -323,10 +317,8 @@ class ServerFunctions(UserDatabase, GroupDatabase):
                     secure_sendto(self.sock, packet, addr, key)
 
             except OSError:
-                # socket closed / network gone -> stop the handler
                 break
             except Exception as e:
-                # a single malformed query or DB hiccup must not kill the server
                 print('query handler error:', e)
                 continue
 

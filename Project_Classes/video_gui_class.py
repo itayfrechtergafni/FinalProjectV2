@@ -109,7 +109,7 @@ class VideoGui(SockFunctions, ctk.CTkFrame):
     # --- Private Methods ---
 
     def __add_box(self, username):
-        if username in self.box_dict:   # already have a box for this user, don't orphan it
+        if username in self.box_dict:   # already have a box for this user
             return
         print('adding box for:',username)
         new_box = VideoBox(self.video_container, participant_name=str(username))
@@ -126,7 +126,7 @@ class VideoGui(SockFunctions, ctk.CTkFrame):
         if n == 0:
             return
 
-        cols = math.ceil(math.sqrt(n)) # the sqrt of box_dict length is the proportions of a square grid.
+        cols = math.ceil(math.sqrt(n)) # the sqrt of box_dict length is the dimensions of a square grid.
         rows = math.ceil(n / cols)
 
         # Reset container weights
@@ -213,11 +213,8 @@ class VideoGui(SockFunctions, ctk.CTkFrame):
                 if not self.running:
                     break
 
-                # Read a full UDP datagram (65535 = max UDP payload). Reading only
-                # CHUNK_SIZE truncates any frame larger than that, which lops off the
-                # trailing "SEP + user_id" and makes the packet unparseable — so that
-                # sender's video box never appears. rsplit(SEP, 1) also keeps us safe
-                # if the JPEG bytes happen to contain the separator sequence.
+                # rsplit(SEP, 1) also makes sure that even if the JPEG bytes happen to contain the separator sequence
+                # the app is still working well
                 packet, sender_id = client_recv(self.sock, 65535)[0].rsplit(SEP, 1)
                 sender_id = sender_id.decode()
 
@@ -262,8 +259,8 @@ class VideoGui(SockFunctions, ctk.CTkFrame):
         # Stop the worker loops, release the camera and close the socket.
         self.running = False
         self.alive = False
-        self.camera_active.set()    # unblock __input_handler if parked
-        self.socket_active.set()    # unblock __output_handler if parked
+        self.camera_active.set()
+        self.socket_active.set()
         try:
             if self.cap and self.cap.isOpened():
                 self.cap.release()
@@ -276,7 +273,7 @@ class VideoGui(SockFunctions, ctk.CTkFrame):
         except Exception:
             pass
         try:
-            self.sock.close()       # unblocks a pending recvfrom
+            self.sock.close()
         except Exception:
             pass
 

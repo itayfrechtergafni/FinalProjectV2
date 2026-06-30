@@ -62,10 +62,6 @@ class LobbyClass(ctk.CTkFrame):
                                         command=self.__add_member)
         self.add_button.grid(row=0, column=2)
 
-        # refresh group list button — sits to the right, vertically centred on the rows to its left.
-        # rowspan=2 means it spans the create row + add-member row when both are shown; when the
-        # add-member row is hidden, that row collapses to 0 height and Refresh lines up with the
-        # create row instead.
         self.refresh_button = ctk.CTkButton(self.controls, text="Refresh", width=120, height=40,
                       command=self.refresh)
         self.refresh_button.grid(row=0, column=1, rowspan=2, padx=(16, 0), pady=10, sticky="ns")
@@ -118,8 +114,7 @@ class LobbyClass(ctk.CTkFrame):
             self.group_menu.configure(values=owned_names)
             self.group_menu.set(owned_names[0])
         else:
-            # no owned groups: hide the add-member row. The Refresh button (rowspan=2) then
-            # collapses onto the create row, so it lines up with the new-group entry/button.
+            # no owned groups: hide the add-member row.
             self.add_member_frame.grid_forget()
 
     # --- Private ---

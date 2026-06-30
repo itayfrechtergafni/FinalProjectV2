@@ -67,9 +67,6 @@ class UserDatabase:
         self.create_db()
         self.create_table()
 
-    # UNIQUE = everyone must be different
-    # KEY AUTOINCREMENT = new user_id is automatically generated
-    # NOT NULL = can't be empty
 
     def create_db(self):
         conn = mysql.connector.connect(host="localhost",username="root", password="Itay2008!",port=3306)
@@ -97,7 +94,6 @@ class UserDatabase:
             conn.commit()
             conn.close()
 
-    # If the table exists, it will be deleted
     def delete_users_table(self):
         with self.lock:
             conn = self.open_connection()
@@ -108,8 +104,6 @@ class UserDatabase:
             conn.close()
 
 
-    # Inserting a new user into the database.
-    # Returns the new user_ID on success, or None if the insert failed
     def insert_user(self, uname: str, fname: str, lname: str, email: str, password: str):
         with self.lock:
             salt = os.urandom(16)
@@ -133,8 +127,7 @@ class UserDatabase:
         self.insert_user(random.choice(usernames), random.choice(first_names),  # creating a random user
                          random.choice(last_names), random.choice(emails), "01234")
 
-    # Gets all users from the database.
-    def fetch_all_users(self):  # Getting all users from the database.
+    def fetch_all_users(self):
         with self.free_spots:
             conn = self.open_connection()
             cursor = conn.cursor()
@@ -244,7 +237,7 @@ class UserDatabase:
         cursor.execute(query, (uname,))
         user = cursor.fetchone()
         conn.close()
-        return user is None   # no row -> the name is available
+        return user is None
 
     def is_email_available(self, email):
         conn = self.open_connection()
@@ -253,7 +246,7 @@ class UserDatabase:
         cursor.execute(query, (email,))
         user = cursor.fetchone()
         conn.close()
-        return user is None   # no row -> the email is available
+        return user is None
 
 
     def open_connection(self):

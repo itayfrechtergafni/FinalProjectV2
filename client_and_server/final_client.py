@@ -15,7 +15,6 @@ VIDEO_PORT, TEXT_PORT, AUDIO_PORT, QUERY_PORT, ANNOUNCE_PORT = 3005, 3006, 3007,
 def connect(port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.connect((HOST, port))
-    # Exchange an RSA->AES session key with the server before any real traffic.
     client_handshake(sock)
     return sock
 

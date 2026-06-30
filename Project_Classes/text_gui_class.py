@@ -15,8 +15,6 @@ class TextGui(SockFunctions, ctk.CTkFrame):
         SockFunctions.__init__(self,sock=sock,query_sock=query_sock,user_id=user_id,group_id=group_id)
         ctk.CTkFrame.__init__(self, parent)
 
-        # Whether THIS user may post in this channel. For the announcements
-        # channel non-owners get a read-only view (they still receive messages).
         self.can_send = can_send
 
 
@@ -78,7 +76,6 @@ class TextGui(SockFunctions, ctk.CTkFrame):
         bubble.pack(side="right", padx=5)
         msg_container.pack(fill="x", pady=5)
 
-    # s
     def update_chat(self):
         if not self.chat_queue.empty() and self.alive:
             msg, sender_username = self.chat_queue.get_nowait()
@@ -124,7 +121,7 @@ class TextGui(SockFunctions, ctk.CTkFrame):
             self.send_join()   # register this socket with our group on the server
 
     def close(self):
-        # Stop the worker loop, drop the global hotkey and close the socket.
+
         self.running = False
         self.alive = False
         try:
@@ -132,6 +129,6 @@ class TextGui(SockFunctions, ctk.CTkFrame):
         except Exception:
             pass
         try:
-            self.sock.close()       # unblocks a pending recvfrom
+            self.sock.close()
         except Exception:
             pass
