@@ -1,19 +1,4 @@
-"""
-setup_database.py — one-shot database setup for TalkHobi.
 
-Run this once before a demo/presentation to guarantee the `talkhobi`
-database, its tables, and a known set of demo accounts + a demo group all
-exist. It is safe to run repeatedly: tables are created with
-`IF NOT EXISTS`, and seeding skips users/groups that are already present.
-
-The schema itself is owned by UserDatabase / GroupDatabase (the same classes
-the server uses), so this script just drives those classes — it never
-re-declares the table layout. That keeps this file in sync with the server
-automatically.
-
-Usage (from the project root):
-    python -m database_classes.setup_database
-"""
 
 import os
 import sys
